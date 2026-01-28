@@ -495,26 +495,28 @@ export class Game {
   private tryDropProp(x: number, y: number): void {
     const rand = Math.random();
     let cumulative = 0;
+    const store = useGameStore.getState();
+    const multiplier = store.difficulty.propDropMultiplier || 1;
 
-    cumulative += CONFIG.SHIELD_DROP_CHANCE;
+    cumulative += CONFIG.SHIELD_DROP_CHANCE * multiplier;
     if (rand < cumulative) {
       this.props.push(createProp(x - CONFIG.PROP.WIDTH / 2, y, 'SHIELD'));
       return;
     }
 
-    cumulative += CONFIG.NUKE_DROP_CHANCE;
+    cumulative += CONFIG.NUKE_DROP_CHANCE * multiplier;
     if (rand < cumulative) {
       this.props.push(createProp(x - CONFIG.PROP.WIDTH / 2, y, 'NUKE'));
       return;
     }
 
-    cumulative += CONFIG.MISSILE_DROP_CHANCE;
+    cumulative += CONFIG.MISSILE_DROP_CHANCE * multiplier;
     if (rand < cumulative) {
       this.props.push(createProp(x - CONFIG.PROP.WIDTH / 2, y, 'MISSILE'));
       return;
     }
 
-    cumulative += CONFIG.RESCUE_DROP_CHANCE;
+    cumulative += CONFIG.RESCUE_DROP_CHANCE * multiplier;
     if (rand < cumulative) {
       this.props.push(createProp(x - CONFIG.PROP.WIDTH / 2, y, 'RESCUE'));
       return;

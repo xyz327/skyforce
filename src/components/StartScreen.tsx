@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
+import { CONFIG, type DifficultyMode } from '../game/config';
 
 interface StartScreenProps {
   onStart: () => void;
 }
 
 export const StartScreen: React.FC<StartScreenProps> = ({ onStart }) => {
-  const { player, setUsername, loadLeaderboard, leaderboard } = useGameStore();
+  const { player, setUsername, loadLeaderboard, leaderboard, difficulty, setDifficultyMode } = useGameStore();
 
   useEffect(() => {
     loadLeaderboard();
@@ -16,7 +17,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onStart }) => {
     <div style={styles.container}>
       <div style={styles.content}>
         <h1 style={styles.title}>SKY FORCE</h1>
-        <p style={styles.subtitle}>空战传说</p>
+        <p style={styles.subtitle}></p>
         
         <div style={styles.inputContainer}>
           <label style={styles.label}>代号:</label>
@@ -28,10 +29,33 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onStart }) => {
           />
         </div>
 
+        <div style={styles.difficultyContainer}>
+          <div style={styles.difficultyLabel}>选择难度</div>
+          <div style={styles.difficultyButtons}>
+            {(Object.keys(CONFIG.DIFFICULTY_MODES) as DifficultyMode[]).map((mode) => {
+              const settings = CONFIG.DIFFICULTY_MODES[mode];
+              const isSelected = difficulty.mode === mode;
+              return (
+                <button
+                  key={mode}
+                  onClick={() => setDifficultyMode(mode)}
+                  style={{
+                    ...styles.difficultyButton,
+                    backgroundColor: isSelected ? settings.color : 'rgba(255, 255, 255, 0.1)',
+                    color: isSelected ? '#000' : '#888',
+                    border: `1px solid ${isSelected ? settings.color : '#444'}`,
+                    transform: isSelected ? 'scale(1.1)' : 'scale(1)',
+                  }}
+                >
+                  {settings.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div style={styles.instructions}>
-          <p>触摸屏幕拖动控制飞机</p>
           <p>击败敌人获得积分升级</p>
-          <p>收集道具获得特殊能力</p>
         </div>
 
         <button style={styles.startButton} onClick={onStart}>
@@ -175,6 +199,27 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center',
     outline: 'none',
     width: '160px',
+  },
+  difficultyContainer: {
+    marginBottom: '20px',
+  },
+  difficultyLabel: {
+    fontSize: '12px',
+    color: '#888',
+    marginBottom: '8px',
+  },
+  difficultyButtons: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '10px',
+  },
+  difficultyButton: {
+    padding: '6px 12px',
+    fontSize: '12px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontFamily: 'monospace',
+    transition: 'all 0.2s',
   },
   leaderboard: {
     marginTop: '20px',

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CONFIG } from '../game/config';
+import { CONFIG, type DifficultyMode } from '../game/config';
 import { fetchLeaderboard, submitScore, type LeaderboardEntry } from '../lib/supabase';
 
 // 游戏状态类型
@@ -11,6 +11,16 @@ const generateRandomUsername = () => {
   const nouns = ['Pilot', 'Eagle', 'Ace', 'Hawk', 'Falcon', 'Raptor', 'Viper', 'Wing'];
   const randomNum = Math.floor(Math.random() * 1000);
   return `${adjectives[Math.floor(Math.random() * adjectives.length)]}${nouns[Math.floor(Math.random() * nouns.length)]}${randomNum}`;
+};
+
+// 获取初始用户名（如果本地有则使用，没有则生成并保存）
+const getInitialUsername = () => {
+  const stored = localStorage.getItem('skyforce_username');
+  if (stored) return stored;
+  
+  const newUsername = generateRandomUsername();
+  localStorage.setItem('skyforce_username', newUsername);
+  return newUsername;
 };
 
 // 玩家数据接口
@@ -39,10 +49,12 @@ interface ProgressData {
 
 // 难度数据接口
 interface DifficultyData {
+  mode: DifficultyMode;
   level: number;
   enemyHealthMultiplier: number;
   enemyDamageMultiplier: number;
   spawnRateMultiplier: number;
+  propDropMultiplier: number;
 }
 
 // Store 接口
@@ -56,6 +68,7 @@ interface GameStore {
   
   // Actions
   setUsername: (name: string) => void;
+  setDifficultyMode: (mode: DifficultyMode) => void;
   loadLeaderboard: () => Promise<void>;
   submitHighScore: () => Promise<void>;
   
@@ -89,7 +102,7 @@ const getExpForLevel = (level: number): number => {
 
 // 初始玩家数据
 const initialPlayerData: PlayerData = {
-  username: generateRandomUsername(),
+  username: getInitialUsername(),
   personalBest: Number(localStorage.getItem('skyforce_pb')) || 0,
   health: CONFIG.PLAYER.MAX_HEALTH,
   maxHealth: CONFIG.PLAYER.MAX_HEALTH,
@@ -113,10 +126,12 @@ const initialProgressData: ProgressData = {
 
 // 初始难度数据
 const initialDifficultyData: DifficultyData = {
+  mode: 'EASY',
   level: 1,
-  enemyHealthMultiplier: 1,
+  enemyHealthMultiplier: CONFIG.DIFFICULTY_MODES.EASY.healthMultiplier,
   enemyDamageMultiplier: 1,
   spawnRateMultiplier: 1,
+  propDropMultiplier: CONFIG.DIFFICULTY_MODES.EASY.propDropMultiplier,
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -128,9 +143,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
   leaderboard: [],
   
   // Actions
-  setUsername: (username: string) => set((state) => ({
-    player: { ...state.player, username }
-  })),
+  setUsername: (username: string) => set((state) => {
+    localStorage.setItem('skyforce_username', username);
+    return {
+      player: { ...state.player, username }
+    };
+  }),
+
+  setDifficultyMode: (mode: DifficultyMode) => set(() => {
+    const settings = CONFIG.DIFFICULTY_MODES[mode];
+    // 重置难度等级和倍率
+    return {
+      difficulty: {
+        mode,
+        level: 1,
+        enemyHealthMultiplier: settings.healthMultiplier,
+        enemyDamageMultiplier: 1,
+        spawnRateMultiplier: 1,
+        propDropMultiplier: settings.propDropMultiplier,
+      }
+    };
+  }),
 
   loadLeaderboard: async () => {
     const data = await fetchLeaderboard();
@@ -310,10 +343,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newLevel = Math.floor(state.progress.distance / CONFIG.DIFFICULTY.DISTANCE_PER_LEVEL) + 1;
     
     if (newLevel !== state.difficulty.level) {
+      const modeSettings = CONFIG.DIFFICULTY_MODES[state.difficulty.mode];
       return {
         difficulty: {
+          ...state.difficulty,
           level: newLevel,
-          enemyHealthMultiplier: 1 + (newLevel - 1) * CONFIG.DIFFICULTY.HEALTH_MULTIPLIER,
+          enemyHealthMultiplier: modeSettings.healthMultiplier + (newLevel - 1) * CONFIG.DIFFICULTY.HEALTH_MULTIPLIER,
           enemyDamageMultiplier: 1 + (newLevel - 1) * CONFIG.DIFFICULTY.DAMAGE_MULTIPLIER,
           spawnRateMultiplier: 1 + (newLevel - 1) * CONFIG.DIFFICULTY.SPAWN_RATE_MULTIPLIER,
         },

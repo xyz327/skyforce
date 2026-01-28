@@ -49,6 +49,28 @@ export const CONFIG = {
     SPAWN_RATE_MULTIPLIER: 0.3, // 每级+30%生成速度
   },
   
+  // 难度模式设置
+  DIFFICULTY_MODES: {
+    EASY: {
+      label: '简单',
+      healthMultiplier: 0.8,
+      propDropMultiplier: 1.5,
+      color: '#00ff88'
+    },
+    HARD: {
+      label: '困难',
+      healthMultiplier: 1.5,
+      propDropMultiplier: 0.8,
+      color: '#ffaa00'
+    },
+    HELL: {
+      label: '地狱',
+      healthMultiplier: 2.5,
+      propDropMultiplier: 0.5,
+      color: '#ff0044'
+    }
+  },
+  
   // 升级配置
   UPGRADE: {
     BASE_EXP: 10, // 基础升级经验
@@ -69,3 +91,6 @@ export type PropType = 'SHIELD' | 'NUKE' | 'MISSILE' | 'RESCUE';
 
 // 子弹归属
 export type BulletOwner = 'player' | 'enemy';
+
+// 难度模式
+export type DifficultyMode = 'EASY' | 'HARD' | 'HELL';
