@@ -20,6 +20,14 @@ export const GameHUD: React.FC = () => {
 
   return (
     <div style={styles.container}>
+      {/* 个人记录提示 */}
+      {player.personalBest > 0 && Math.floor(progress.distance) < player.personalBest && (
+        <div style={styles.pbIndicator}>
+          <span style={styles.pbLabel}>最佳记录</span>
+          <span style={styles.pbValue}>{player.personalBest}m</span>
+        </div>
+      )}
+
       {/* 第一行：血量 */}
       <div style={styles.row}>
         <div style={styles.item}>
@@ -172,6 +180,27 @@ const styles: Record<string, React.CSSProperties> = {
   },
   statValue: {
     fontSize: '13px',
+    fontWeight: 'bold',
+  },
+  pbIndicator: {
+    position: 'absolute',
+    top: '10px',
+    right: '10px',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+  },
+  pbLabel: {
+    fontSize: '10px',
+    color: '#aaa',
+  },
+  pbValue: {
+    fontSize: '12px',
+    color: '#fff',
     fontWeight: 'bold',
   },
 };

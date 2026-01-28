@@ -32,6 +32,10 @@ export class Game {
 
   // 背景滚动
   private bgOffset: number = 0;
+  
+  // 记录是否已庆祝
+  private hasCelebrated: boolean = false;
+  private celebrationTimer: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -88,6 +92,8 @@ export class Game {
     // 重置系统
     this.enemySpawner.reset();
     this.bgOffset = 0;
+    this.hasCelebrated = false;
+    this.celebrationTimer = 0;
   }
 
   // 游戏主循环
@@ -117,6 +123,20 @@ export class Game {
     store.updateDistance(distanceDelta);
     store.updatePlayTime(deltaTime);
     store.updateDifficulty();
+
+    // 检查是否打破记录
+    const currentDistance = Math.floor(store.progress.distance);
+    if (store.player.personalBest > 0 && 
+        currentDistance > store.player.personalBest && 
+        !this.hasCelebrated) {
+        this.hasCelebrated = true;
+        this.celebrationTimer = 1000; // 1秒庆祝时间
+    }
+    
+    // 更新庆祝计时器
+    if (this.celebrationTimer > 0) {
+        this.celebrationTimer -= deltaTime;
+    }
 
     // 更新背景滚动
     this.bgOffset = (this.bgOffset + deltaTime * 0.1) % this.height;
@@ -391,6 +411,13 @@ export class Game {
                 plane.state = 'leaving';
             }, 500);
         }
+      } else if (plane.state === 'healing') {
+          // 在治疗期间持续产生特效
+          if (this.player && this.player.active && Math.random() < 0.3) {
+              const ex = this.player.x + Math.random() * this.player.width;
+              const ey = this.player.y + Math.random() * this.player.height;
+              this.effects.push(createHealEffect(ex, ey));
+          }
       } else if (plane.state === 'leaving') {
           // 继续向上飞
           plane.y += plane.velocityY * (deltaTime / 1000);
@@ -589,6 +616,78 @@ export class Game {
 
     // 绘制救援飞机
     this.renderRescuePlanes();
+    
+    // 绘制记录线和庆祝特效
+    this.renderRecords();
+  }
+
+  // 渲染记录线和庆祝特效
+  private renderRecords(): void {
+    const ctx = this.ctx;
+    const store = useGameStore.getState();
+    const currentDistance = store.progress.distance;
+    const pb = store.player.personalBest;
+    
+    // 如果有记录且当前未超过记录太多（在视野内）
+    if (pb > 0) {
+        // 计算 PB 距离相对于当前位置的屏幕 Y 坐标
+        // 游戏逻辑是向上飞，distance 增加。假设屏幕对应的是 currentDistance 到 currentDistance + screenHeight
+        // 但这里实际上是垂直卷轴，飞机相对静止，背景和敌人向下动。
+        // 我们需要模拟一个"路过"记录点的效果。
+        // 简单做法：当 currentDistance 接近 pb 时，在屏幕上方出现，然后向下移动。
+        
+        const distanceToPb = pb - currentDistance;
+        // 假设 1米 = 10像素 (随意比例，只要看起来合理)
+        const pixelsPerMeter = 10;
+        const relativeY = -distanceToPb * pixelsPerMeter + 100; // 偏移一点
+        
+        // 如果记录线在屏幕范围内
+        if (relativeY > -50 && relativeY < this.height + 50) {
+            const drawY = Math.floor(relativeY);
+            
+            // 虚线
+            ctx.setLineDash([10, 10]);
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, drawY);
+            ctx.lineTo(this.width, drawY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 标记
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
+            ctx.font = '12px monospace';
+            ctx.fillText(`PB: ${pb}m`, 10, drawY - 5);
+        }
+    }
+    
+    // 庆祝特效
+    if (this.celebrationTimer > 0) {
+        ctx.save();
+        ctx.fillStyle = `rgba(255, 215, 0, ${this.celebrationTimer / 1000})`;
+        ctx.font = 'bold 30px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#ffaa00';
+        ctx.shadowBlur = 20;
+        ctx.fillText('NEW RECORD!', this.width / 2, this.height / 3);
+        
+        // 简单的彩带粒子
+        const particleCount = 20;
+        for (let i = 0; i < particleCount; i++) {
+            const px = Math.random() * this.width;
+            const py = Math.random() * this.height;
+            const size = Math.random() * 5 + 2;
+            const color = ['#ff0000', '#00ff00', '#0000ff', '#ffff00'][Math.floor(Math.random() * 4)];
+            
+            ctx.fillStyle = color;
+            ctx.globalAlpha = this.celebrationTimer / 1000;
+            ctx.fillRect(px, py, size, size);
+        }
+        
+        ctx.restore();
+    }
   }
 
   // 渲染背景

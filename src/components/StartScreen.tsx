@@ -1,16 +1,33 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useGameStore } from '../store/gameStore';
 
 interface StartScreenProps {
   onStart: () => void;
 }
 
 export const StartScreen: React.FC<StartScreenProps> = ({ onStart }) => {
+  const { player, setUsername, loadLeaderboard, leaderboard } = useGameStore();
+
+  useEffect(() => {
+    loadLeaderboard();
+  }, []);
+
   return (
     <div style={styles.container}>
       <div style={styles.content}>
         <h1 style={styles.title}>SKY FORCE</h1>
         <p style={styles.subtitle}>空战传说</p>
         
+        <div style={styles.inputContainer}>
+          <label style={styles.label}>代号:</label>
+          <input
+            type="text"
+            value={player.username}
+            onChange={(e) => setUsername(e.target.value)}
+            style={styles.input}
+          />
+        </div>
+
         <div style={styles.instructions}>
           <p>触摸屏幕拖动控制飞机</p>
           <p>击败敌人获得积分升级</p>
@@ -20,6 +37,28 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onStart }) => {
         <button style={styles.startButton} onClick={onStart}>
           开始游戏
         </button>
+
+        {leaderboard.length > 0 && (
+          <div style={styles.leaderboard}>
+            <h3 style={styles.leaderboardTitle}>王牌飞行员</h3>
+            <div style={styles.leaderboardList}>
+              {leaderboard.slice(0, 5).map((entry, index) => (
+                <div key={index} style={styles.leaderboardItem}>
+                  <span style={styles.rank}>#{index + 1}</span>
+                  <span style={styles.name}>{entry.username}</span>
+                  <span style={styles.score}>{entry.score}m</span>
+                </div>
+              ))}
+            </div>
+            {player.personalBest > 0 && (
+               <div style={{...styles.leaderboardItem, marginTop: '10px', color: '#00ff88'}}>
+                  <span style={styles.rank}>PB</span>
+                  <span style={styles.name}>个人最佳</span>
+                  <span style={styles.score}>{player.personalBest}m</span>
+               </div>
+            )}
+          </div>
+        )}
 
         <div style={styles.legend}>
           <div style={styles.legendItem}>
@@ -112,5 +151,75 @@ const styles: Record<string, React.CSSProperties> = {
     width: '12px',
     height: '12px',
     borderRadius: '50%',
+  },
+  inputContainer: {
+    marginBottom: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px',
+  },
+  label: {
+    fontSize: '16px',
+    color: '#00ff88',
+    fontFamily: 'monospace',
+  },
+  input: {
+    padding: '8px 12px',
+    fontSize: '16px',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    border: '1px solid #00ff88',
+    borderRadius: '4px',
+    color: '#fff',
+    fontFamily: 'monospace',
+    textAlign: 'center',
+    outline: 'none',
+    width: '160px',
+  },
+  leaderboard: {
+    marginTop: '20px',
+    padding: '15px',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: '8px',
+    width: '280px',
+    margin: '20px auto',
+    border: '1px solid #333',
+  },
+  leaderboardTitle: {
+    margin: '0 0 10px 0',
+    fontSize: '14px',
+    color: '#ffaa00',
+    textTransform: 'uppercase',
+    letterSpacing: '2px',
+  },
+  leaderboardList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '5px',
+  },
+  leaderboardItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '12px',
+    color: '#ccc',
+    padding: '2px 0',
+  },
+  rank: {
+    width: '30px',
+    textAlign: 'left',
+    color: '#666',
+  },
+  name: {
+    flex: 1,
+    textAlign: 'left',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  score: {
+    width: '60px',
+    textAlign: 'right',
+    color: '#fff',
+    fontFamily: 'monospace',
   },
 };

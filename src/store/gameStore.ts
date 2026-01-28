@@ -1,11 +1,22 @@
 import { create } from 'zustand';
 import { CONFIG } from '../game/config';
+import { fetchLeaderboard, submitScore, type LeaderboardEntry } from '../lib/supabase';
 
 // 游戏状态类型
 export type GameState = 'menu' | 'playing' | 'paused' | 'gameover';
 
+// 生成随机用户名
+const generateRandomUsername = () => {
+  const adjectives = ['Swift', 'Brave', 'Cosmic', 'Hyper', 'Neon', 'Shadow', 'Iron', 'Star'];
+  const nouns = ['Pilot', 'Eagle', 'Ace', 'Hawk', 'Falcon', 'Raptor', 'Viper', 'Wing'];
+  const randomNum = Math.floor(Math.random() * 1000);
+  return `${adjectives[Math.floor(Math.random() * adjectives.length)]}${nouns[Math.floor(Math.random() * nouns.length)]}${randomNum}`;
+};
+
 // 玩家数据接口
 interface PlayerData {
+  username: string;
+  personalBest: number;
   health: number;
   maxHealth: number;
   score: number;
@@ -41,8 +52,13 @@ interface GameStore {
   player: PlayerData;
   progress: ProgressData;
   difficulty: DifficultyData;
+  leaderboard: LeaderboardEntry[];
   
   // Actions
+  setUsername: (name: string) => void;
+  loadLeaderboard: () => Promise<void>;
+  submitHighScore: () => Promise<void>;
+  
   startGame: () => void;
   pauseGame: () => void;
   resumeGame: () => void;
@@ -73,6 +89,8 @@ const getExpForLevel = (level: number): number => {
 
 // 初始玩家数据
 const initialPlayerData: PlayerData = {
+  username: generateRandomUsername(),
+  personalBest: Number(localStorage.getItem('skyforce_pb')) || 0,
   health: CONFIG.PLAYER.MAX_HEALTH,
   maxHealth: CONFIG.PLAYER.MAX_HEALTH,
   score: 0,
@@ -107,7 +125,38 @@ export const useGameStore = create<GameStore>((set, get) => ({
   player: { ...initialPlayerData },
   progress: { ...initialProgressData },
   difficulty: { ...initialDifficultyData },
+  leaderboard: [],
   
+  // Actions
+  setUsername: (username: string) => set((state) => ({
+    player: { ...state.player, username }
+  })),
+
+  loadLeaderboard: async () => {
+    const data = await fetchLeaderboard();
+    set({ leaderboard: data });
+  },
+
+  submitHighScore: async () => {
+    const { player, progress } = get();
+    const distance = Math.floor(progress.distance);
+    
+    // 更新个人最佳
+    if (distance > player.personalBest) {
+      set((state) => ({
+        player: { ...state.player, personalBest: distance }
+      }));
+      localStorage.setItem('skyforce_pb', distance.toString());
+    }
+
+    // 上传分数
+    await submitScore(player.username, distance);
+    
+    // 重新获取排行榜
+    const data = await fetchLeaderboard();
+    set({ leaderboard: data });
+  },
+
   // 游戏流程控制
   startGame: () => set({ gameState: 'playing' }),
   
@@ -115,14 +164,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   resumeGame: () => set({ gameState: 'playing' }),
   
-  endGame: () => set({ gameState: 'gameover' }),
+  endGame: () => {
+    const { submitHighScore } = get();
+    submitHighScore();
+    set({ gameState: 'gameover' });
+  },
   
-  resetGame: () => set({
-    gameState: 'menu',
-    player: { ...initialPlayerData },
-    progress: { ...initialProgressData },
-    difficulty: { ...initialDifficultyData },
-  }),
+  resetGame: () => {
+    const { player } = get();
+    // 保持 username 和 personalBest
+    set({
+      gameState: 'menu',
+      player: { 
+        ...initialPlayerData, 
+        username: player.username,
+        personalBest: player.personalBest 
+      },
+      progress: { ...initialProgressData },
+      difficulty: { ...initialDifficultyData },
+    });
+  },
   
   // 玩家相关
   updateScore: (points: number) => set((state) => ({
