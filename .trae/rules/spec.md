@@ -1,0 +1,1 @@
+项目方案在 .qoder/airplane-shooter-game.md 中
