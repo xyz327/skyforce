@@ -5,6 +5,7 @@ import { GameCanvas } from './components/GameCanvas';
 import { GameHUD } from './components/GameHUD';
 import { StartScreen } from './components/StartScreen';
 import { GameOverScreen } from './components/GameOverScreen';
+import { AudioControl } from './components/AudioControl';
 
 function App() {
   const { gameState, startGame, resetGame } = useGameStore();
@@ -29,6 +30,7 @@ function App() {
 
   return (
     <div style={styles.container}>
+      <AudioControl />
       <div style={styles.gameArea}>
         <GameCanvas onGameReady={handleGameReady} />
         {gameState === 'playing' && <GameHUD />}

@@ -5,6 +5,7 @@ import { createPlayer, createBullet, createProp, createExplosion, createNukeEffe
 import { detectCollisions, checkAABB } from './systems/CollisionSystem';
 import { EnemySpawner } from './systems/EnemySpawner';
 import { useGameStore } from '../store/gameStore';
+import { audioManager } from './AudioManager';
 
 export class Game {
   private ctx: CanvasRenderingContext2D;
@@ -61,6 +62,8 @@ export class Game {
     resetIdCounter();
     this.reset();
     this.lastTime = performance.now();
+    // 开始播放背景音乐
+    audioManager.playBackgroundMusic();
     this.loop();
   }
 
@@ -70,6 +73,8 @@ export class Game {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
     }
+    // 停止背景音乐
+    audioManager.stopBackgroundMusic();
   }
 
   // 重置游戏状态
@@ -369,6 +374,8 @@ export class Game {
             store.updateScore(enemy.scoreValue);
             store.addExperience(enemy.scoreValue);
             store.incrementKills();
+            // 播放击杀音效
+            audioManager.playEnemyKill();
             this.tryDropProp(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
           }
         }
@@ -466,6 +473,9 @@ export class Game {
         // 添加爆炸特效
         this.effects.push(createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2));
 
+        // 播放击杀音效
+        audioManager.playEnemyKill();
+
         // 掉落道具
         this.tryDropProp(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
       }
@@ -475,6 +485,8 @@ export class Game {
     for (const { bullet } of result.enemyBulletHits) {
       bullet.active = false;
       store.takeDamage(bullet.damage);
+      // 播放受伤音效
+      audioManager.playPlayerHit();
     }
 
     // 处理玩家与敌人碰撞
@@ -482,6 +494,8 @@ export class Game {
       enemy.active = false;
       store.takeDamage(enemy.damage);
       this.effects.push(createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2));
+      // 播放受伤音效
+      audioManager.playPlayerHit();
     }
 
     // 处理拾取道具
@@ -529,6 +543,8 @@ export class Game {
 
     if (propType === 'SHIELD') {
       store.activateShield();
+      // 播放护盾拾取音效
+      audioManager.playPickupShield();
     } else if (propType === 'NUKE') {
       // 核弹效果：清除所有敌人和敌方子弹
       const killedEnemies = this.enemies.filter((e) => e.active);
@@ -552,6 +568,9 @@ export class Game {
       // 增加分数
       store.updateScore(totalScore);
       store.addExperience(totalScore);
+
+      // 播放核弹拾取音效
+      audioManager.playPickupNuke();
     } else if (propType === 'MISSILE') {
       // 呼叫导弹：从四个角落发射
       if (!this.player) return;
@@ -567,6 +586,8 @@ export class Game {
       // 右下 -> 左上
       this.missiles.push(createMissile(this.width, this.height, 0, 0, damage));
       
+      // 播放导弹拾取音效
+      audioManager.playPickupMissile();
     } else if (propType === 'RESCUE') {
       // 召唤救援
       if (!this.player) return;
@@ -576,6 +597,9 @@ export class Game {
       const targetY = this.player.y;
       
       this.rescuePlanes.push(createRescuePlane(this.player.x, healAmount, targetY));
+
+      // 播放救援拾取音效
+      audioManager.playPickupRescue();
     }
   }
 
@@ -782,13 +806,36 @@ export class Game {
 
       const { x, y, width, height, enemyType, health, maxHealth } = enemy;
 
-      // 根据类型选择颜色
-      let color = '#ff4444';
-      if (enemyType === 'MEDIUM') color = '#ff8800';
-      if (enemyType === 'LARGE') color = '#ff0088';
+      // 根据类型选择颜色方案
+      let mainColor = '#ff4444';
+      let darkColor = '#cc0000';
+      let accentColor = '#ff8888';
+      let glowColor = 'rgba(255, 68, 68, 0.3)';
+      
+      if (enemyType === 'MEDIUM') {
+        mainColor = '#ff8800';
+        darkColor = '#cc6600';
+        accentColor = '#ffaa44';
+        glowColor = 'rgba(255, 136, 0, 0.3)';
+      }
+      if (enemyType === 'LARGE') {
+        mainColor = '#ff0088';
+        darkColor = '#cc0066';
+        accentColor = '#ff44aa';
+        glowColor = 'rgba(255, 0, 136, 0.3)';
+      }
 
-      // 绘制敌机（倒三角形）
-      ctx.fillStyle = color;
+      // 绘制光晕效果（外层）
+      ctx.fillStyle = glowColor;
+      ctx.beginPath();
+      ctx.moveTo(Math.floor(x + width / 2), Math.floor(y + height + 3));
+      ctx.lineTo(Math.floor(x - 2), Math.floor(y - 2));
+      ctx.lineTo(Math.floor(x + width + 2), Math.floor(y - 2));
+      ctx.closePath();
+      ctx.fill();
+
+      // 绘制主体（倒三角形）
+      ctx.fillStyle = mainColor;
       ctx.beginPath();
       ctx.moveTo(Math.floor(x + width / 2), Math.floor(y + height));
       ctx.lineTo(Math.floor(x), Math.floor(y));
@@ -796,9 +843,52 @@ export class Game {
       ctx.closePath();
       ctx.fill();
 
-      // 机身
-      ctx.fillStyle = '#aa0000';
-      ctx.fillRect(Math.floor(x + width / 2 - 3), Math.floor(y + 4), 6, height - 8);
+      // 绘制边框增强立体感
+      ctx.strokeStyle = darkColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(Math.floor(x + width / 2), Math.floor(y + height));
+      ctx.lineTo(Math.floor(x), Math.floor(y));
+      ctx.lineTo(Math.floor(x + width), Math.floor(y));
+      ctx.closePath();
+      ctx.stroke();
+
+      // 机身（深色条纹）
+      ctx.fillStyle = darkColor;
+      ctx.fillRect(Math.floor(x + width / 2 - 3), Math.floor(y + 6), 6, height - 12);
+
+      // 驾驶舱/核心（高亮部分）
+      ctx.fillStyle = accentColor;
+      ctx.fillRect(Math.floor(x + width / 2 - 2), Math.floor(y + 8), 4, 6);
+
+      // 引擎光效（底部）
+      ctx.fillStyle = '#ff6600';
+      ctx.fillRect(Math.floor(x + width / 2 - 2), Math.floor(y + height - 4), 4, 3);
+      ctx.fillStyle = '#ffaa00';
+      ctx.fillRect(Math.floor(x + width / 2 - 1), Math.floor(y + height - 3), 2, 2);
+
+      // 机翼装饰线
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      // 左翼
+      ctx.moveTo(Math.floor(x + width / 4), Math.floor(y + height / 2));
+      ctx.lineTo(Math.floor(x + 2), Math.floor(y + 2));
+      // 右翼
+      ctx.moveTo(Math.floor(x + width * 3 / 4), Math.floor(y + height / 2));
+      ctx.lineTo(Math.floor(x + width - 2), Math.floor(y + 2));
+      ctx.stroke();
+
+      // 大型敌机额外装饰
+      if (enemyType === 'LARGE') {
+        // 额外的装甲板
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(Math.floor(x + width / 2 - 5), Math.floor(y + height / 2), 10, 4);
+        
+        // 危险标识（小点）
+        ctx.fillStyle = '#ffff00';
+        ctx.fillRect(Math.floor(x + width / 2 - 1), Math.floor(y + height / 2 + 1), 2, 2);
+      }
 
       // 血条
       if (health < maxHealth) {
@@ -806,11 +896,27 @@ export class Game {
         const barHeight = 3;
         const healthPercent = health / maxHealth;
 
+        // 血条背景
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(Math.floor(x - 1), Math.floor(y - 7), barWidth + 2, barHeight + 2);
+
+        // 血条底色
         ctx.fillStyle = '#333';
         ctx.fillRect(Math.floor(x), Math.floor(y - 6), barWidth, barHeight);
 
-        ctx.fillStyle = '#ff0000';
+        // 血条（根据血量变色）
+        let barColor = '#00ff00';
+        if (healthPercent < 0.3) barColor = '#ff0000';
+        else if (healthPercent < 0.6) barColor = '#ffaa00';
+
+        ctx.fillStyle = barColor;
         ctx.fillRect(Math.floor(x), Math.floor(y - 6), Math.floor(barWidth * healthPercent), barHeight);
+
+        // 血条高光
+        if (healthPercent > 0) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+          ctx.fillRect(Math.floor(x), Math.floor(y - 6), Math.floor(barWidth * healthPercent), 1);
+        }
       }
     }
   }
