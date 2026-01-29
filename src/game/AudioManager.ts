@@ -26,6 +26,22 @@ export class AudioManager {
     }
   }
 
+  // 在用户交互时初始化音频（移动端必需）
+  async initOnUserInteraction(): Promise<void> {
+    if (!this.audioContext) {
+      this.initAudioContext();
+    }
+    
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+        console.log('音频上下文已激活');
+      } catch (e) {
+        console.warn('无法激活音频上下文', e);
+      }
+    }
+  }
+
   // 确保音频上下文已启动（需要用户交互）
   private async ensureAudioContext(): Promise<AudioContext | null> {
     if (!this.enabled || !this.audioContext) return null;

@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { Game } from '../game/Game';
 import { useGameStore } from '../store/gameStore';
 import { CONFIG } from '../game/config';
+import { audioManager } from '../game/AudioManager';
 
 interface GameCanvasProps {
   onGameReady: (game: Game) => void;
@@ -48,11 +49,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameReady }) => {
   }, [gameState]);
 
   // 触摸事件处理
-  const handleTouch = useCallback((e: React.TouchEvent | React.MouseEvent, isEnd: boolean = false) => {
+  const handleTouch = useCallback(async (e: React.TouchEvent | React.MouseEvent, isEnd: boolean = false) => {
     if (!gameRef.current || !canvasRef.current) return;
     if (gameState !== 'playing') return;
 
     e.preventDefault();
+
+    // 在第一次触摸时确保音频上下文已激活（移动端必需）
+    if (!isEnd) {
+      await audioManager.initOnUserInteraction();
+    }
 
     if (isEnd) {
       gameRef.current.setTargetPosition(null, null);

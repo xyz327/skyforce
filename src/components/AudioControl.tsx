@@ -5,13 +5,17 @@ export const AudioControl: React.FC = () => {
   const [sfxEnabled, setSfxEnabled] = useState(audioManager.isEnabled());
   const [musicEnabled, setMusicEnabled] = useState(audioManager.isMusicEnabled());
 
-  const toggleSfx = () => {
+  const toggleSfx = async () => {
+    // 确保音频上下文已初始化（移动端）
+    await audioManager.initOnUserInteraction();
     const newState = !sfxEnabled;
     setSfxEnabled(newState);
     audioManager.setEnabled(newState);
   };
 
-  const toggleMusic = () => {
+  const toggleMusic = async () => {
+    // 确保音频上下文已初始化（移动端）
+    await audioManager.initOnUserInteraction();
     const newState = !musicEnabled;
     setMusicEnabled(newState);
     audioManager.setMusicEnabled(newState);

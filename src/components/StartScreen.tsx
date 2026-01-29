@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { CONFIG, type DifficultyMode } from '../game/config';
+import { audioManager } from '../game/AudioManager';
 
 interface StartScreenProps {
   onStart: () => void;
@@ -12,6 +13,16 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onStart }) => {
   useEffect(() => {
     loadLeaderboard();
   }, []);
+
+  const handleStart = async () => {
+    // 在用户交互时初始化音频上下文（移动端需要）
+    try {
+      await audioManager.initOnUserInteraction();
+    } catch (e) {
+      console.warn('音频初始化失败', e);
+    }
+    onStart();
+  };
 
   return (
     <div style={styles.container}>
@@ -58,7 +69,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onStart }) => {
           <p>击败敌人获得积分升级</p>
         </div>
 
-        <button style={styles.startButton} onClick={onStart}>
+        <button style={styles.startButton} onClick={handleStart}>
           开始游戏
         </button>
 
